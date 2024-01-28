@@ -25,9 +25,8 @@ public class Main {
 
             System.out.println("Creating table in given database...");
             String createTable =  "CREATE TABLE COMPANY " +
-                    "(ID INTEGER AUTO_INCREMENT, " +
-                    " NAME VARCHAR(255) UNIQUE not NULL," +
-                    "PRIMARY KEY ( id ))";
+                    "(ID INTEGER PRIMARY KEY AUTO_INCREMENT, " +
+                    " NAME VARCHAR(255) UNIQUE NOT NULL)";
             stmt.executeUpdate(createTable);
             System.out.println("Created table in given database...");
 
