@@ -57,6 +57,16 @@ public class DBClient {
         }
     }
 
+    public void updateRecord(String tableName, String column, String value, int id) {
+        try {
+            String updateRecordQuery = String.format("UPDATE %s SET %s = %s WHERE ID = %d", tableName, column, value, id);
+            stmt.executeUpdate(updateRecordQuery);
+        } catch (SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+    }
+
     public void closeJDBCResources() {
         try {
             // Clean-up environment
@@ -79,4 +89,5 @@ public class DBClient {
         }
     }
 }
+
 

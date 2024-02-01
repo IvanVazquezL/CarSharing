@@ -2,6 +2,7 @@ package Final;
 
 import Final.controller.CarController;
 import Final.controller.CompanyController;
+import Final.controller.CustomerController;
 import Final.repo.DBClient;
 
 import java.sql.*;
@@ -48,12 +49,14 @@ class CarSharingManager {
             """;
     private final CompanyController companyController;
     private final CarController carController;
+    private final CustomerController customerController;
 
     CarSharingManager(DBClient dbClient) {
         this.dbClient = dbClient;
         initializeDatabaseSchema();
         this.companyController = new CompanyController(this.dbClient);
         this.carController = new CarController(this.dbClient);
+        this.customerController = new CustomerController(this.dbClient);
     }
 
     private void initializeDatabaseSchema() {
@@ -88,10 +91,10 @@ class CarSharingManager {
                     displayCompanyMenu();
                     break;
                 case 2:
-                    //displayCustomerMenu();
+                    displayCustomerMenu();
                     break;
                 case 3:
-                    //createCustomer();
+                    createCustomer();
                     break;
                 default:
                     break;
@@ -228,5 +231,151 @@ class CarSharingManager {
         carController.createRecord(values);
 
         System.out.println("The car was added!");
+    }
+
+    private void displayCustomerMenu() {
+        try {
+            ResultSet allCustomers = customerController.getAllRecords();
+
+            if (!allCustomers.next()) {
+                System.out.println("The customer list is empty!");
+                return;
+            }
+
+            System.out.println("Customer list:");
+            int counter = 1;
+
+            do {
+                String customerName = allCustomers.getString("NAME");
+                System.out.printf("%d. %s\n", counter, customerName);
+                counter++;
+            } while(allCustomers.next());
+
+            System.out.println("0. Back");
+
+            int option = scanner.nextInt();
+
+            if (option == 0) {
+                return;
+            }
+
+        } catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+    }
+
+    private void displayRentedCarsMenu() {
+        System.out.println(customerMenu);
+        int option;
+
+        do {
+            option = scanner.nextInt();
+
+            switch(option) {
+                case 1:
+                    rentACar();
+                    break;
+                case 2:
+                    //createCar(id);
+                    break;
+                case 0:
+                default:
+                    break;
+            }
+        } while(option != 0);
+    }
+
+    private void rentACar() {
+        try {
+            ResultSet allCompanies = companyController.getAllRecords();
+
+            if (!allCompanies.next()) {
+                System.out.println("The company list is empty!");
+                return;
+            }
+
+            System.out.println("Choose a company:");
+            Map<String, Integer> companies = new HashMap<>();
+            Map<Integer, String> options = new HashMap<>();
+            int counter = 1;
+
+            do {
+                int id = allCompanies.getInt("ID");
+                String companyName = allCompanies.getString("NAME");
+
+                companies.put(companyName, id);
+                options.put(counter, companyName);
+
+                System.out.printf("%d. %s\n", counter, companyName);
+                counter++;
+            } while(allCompanies.next());
+
+            System.out.println("0. Back");
+
+            int option = scanner.nextInt();
+
+            if (option == 0) {
+                return;
+            }
+
+            String selectedCompany = options.get(option);
+            selectACar(companies.get(selectedCompany));
+        } catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+    }
+
+    private void selectACar(int id) {
+        try {
+            String conditions = String.format("WHERE COMPANY_ID = %d", id);
+            ResultSet rs = carController.getAllRecords(conditions);
+
+            if (!rs.next()) {
+                System.out.println("The car list is empty!");
+                return;
+            }
+
+            System.out.println("Choose a car:");
+            int counter = 1;
+
+            Map<String, Integer> cars = new HashMap<>();
+            Map<Integer, String> options = new HashMap<>();
+
+            do {
+                int carId = rs.getInt("ID");
+                String carName = rs.getString("NAME");
+
+                cars.put(carName, id);
+                options.put(counter, carName);
+
+                System.out.printf("%d. %s\n", counter, carName);
+                counter++;
+            }  while (rs.next());
+
+            int option = scanner.nextInt();
+
+            if (option == 0) {
+                return;
+            }
+
+            String selectedCar = options.get(option);
+            int selectedCarId = cars.get(selectedCar);
+
+        } catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+    }
+
+    private void createCustomer() {
+        System.out.println("Enter the customer name:");
+
+        String customerName = scanner.nextLine();
+        String values = String.format("'%s', null", customerName);
+        customerController.createRecord(values);
+
+        System.out.println("The customer was added!");
     }
 }
