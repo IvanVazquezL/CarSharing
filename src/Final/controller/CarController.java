@@ -22,4 +22,16 @@ public class CarController implements ICRUD {
     public void createRecord(String values) {
         dbClient.createRecord(tableName, tableColumns, values);
     }
+
+    @Override
+    public void updateRecord(String updateClause, int id) {
+        dbClient.updateRecord(tableName, updateClause, id);
+
+    }
+
+    @Override
+    public ResultSet getRecordById(int id) {
+        String conditions = String.format("WHERE ID = %d", id);
+        return this.getAllRecords(conditions);
+    }
 }

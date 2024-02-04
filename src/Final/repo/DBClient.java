@@ -24,6 +24,19 @@ public class DBClient {
         }
     }
 
+    public ResultSet test() {
+        try {
+            String getAllQuery = "SELECT * FROM CUSTOMER";
+            ResultSet rs = stmt.executeQuery(getAllQuery);
+
+            return rs;
+        } catch (SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+            return null;
+        }
+    }
+
     public void createTable(String tableName, String tableColumns) {
         try {
             String createQuery = String.format("CREATE TABLE %s %s", tableName, tableColumns);
@@ -36,6 +49,7 @@ public class DBClient {
 
     public ResultSet getAllRecords(String tableName, String conditions) {
         try {
+            System.out.println(String.format("SELECT * FROM %s %s", tableName, conditions));
             String getAllQuery = String.format("SELECT * FROM %s %s", tableName, conditions);
             ResultSet rs = stmt.executeQuery(getAllQuery);
 
@@ -49,7 +63,7 @@ public class DBClient {
 
     public void createRecord(String tableName, String columns, String values) {
         try {
-            String createRecordQuery = String.format("INSERT INTO %s (%s) VALUES(%s)", tableName, columns, values);
+            String createRecordQuery = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
             stmt.executeUpdate(createRecordQuery);
         } catch (SQLException se) {
             //Handle errors for JDBC
@@ -57,9 +71,9 @@ public class DBClient {
         }
     }
 
-    public void updateRecord(String tableName, String column, String value, int id) {
+    public void updateRecord(String tableName, String updateClause, int id) {
         try {
-            String updateRecordQuery = String.format("UPDATE %s SET %s = %s WHERE ID = %d", tableName, column, value, id);
+            String updateRecordQuery = String.format("UPDATE %s SET %s WHERE ID = %d", tableName, updateClause, id);
             stmt.executeUpdate(updateRecordQuery);
         } catch (SQLException se) {
             //Handle errors for JDBC

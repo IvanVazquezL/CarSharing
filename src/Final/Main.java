@@ -17,6 +17,23 @@ public class Main {
         String DB_URL = "jdbc:h2:./src/carsharing/db/carsharing";
 
         DBClient dbClient = new DBClient(JDBC_DRIVER, DB_URL);
+
+        /*
+        ResultSet rs = dbClient.test();
+        try {
+            rs.next();
+            System.out.println(rs.getString("NAME"));
+            System.out.println(rs.getInt("ID"));
+            System.out.println(rs.getInt("RENTED_CAR_ID"));
+
+        }  catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+        */
+
+
+
         CarSharingManager csm = new CarSharingManager(dbClient);
         csm.displayMenu();
     }
@@ -170,7 +187,8 @@ class CarSharingManager {
         System.out.println("Enter the company name:");
         String name = scanner.nextLine();
 
-        companyController.createRecord(name);
+        String nameFormat =  String.format("'%s'", name);
+        companyController.createRecord(nameFormat);
         System.out.println("The company was created!");
     }
 
@@ -242,12 +260,15 @@ class CarSharingManager {
                 return;
             }
 
-            System.out.println("Customer list:");
+            System.out.println("The customer list:");
             int counter = 1;
 
+            HashMap<Integer, Integer> customersId = new HashMap<Integer, Integer>();
             do {
+                int customerId = allCustomers.getInt("ID");
                 String customerName = allCustomers.getString("NAME");
                 System.out.printf("%d. %s\n", counter, customerName);
+                customersId.put(counter, customerId);
                 counter++;
             } while(allCustomers.next());
 
@@ -259,26 +280,29 @@ class CarSharingManager {
                 return;
             }
 
+            displayRentedCarsMenu(customersId.get(option));
         } catch(SQLException se) {
             //Handle errors for JDBC
             se.printStackTrace();
         }
     }
 
-    private void displayRentedCarsMenu() {
-        System.out.println(customerMenu);
+    private void displayRentedCarsMenu(int customerId) {
         int option;
 
         do {
+            System.out.println(customerMenu);
             option = scanner.nextInt();
 
             switch(option) {
                 case 1:
-                    rentACar();
+                    rentACar(customerId);
                     break;
                 case 2:
-                    //createCar(id);
+                    returnACar(customerId);
                     break;
+                case 3:
+                    checkRentedCar(customerId);
                 case 0:
                 default:
                     break;
@@ -286,8 +310,16 @@ class CarSharingManager {
         } while(option != 0);
     }
 
-    private void rentACar() {
+    private void rentACar(int customerId) {
         try {
+            ResultSet currentCustomer = customerController.getRecordById(customerId);
+            currentCustomer.next();
+
+            if (HasARentedCar(currentCustomer)) {
+                System.out.println("You've already rented a car!");
+                return;
+            }
+
             ResultSet allCompanies = companyController.getAllRecords();
 
             if (!allCompanies.next()) {
@@ -320,19 +352,30 @@ class CarSharingManager {
             }
 
             String selectedCompany = options.get(option);
-            selectACar(companies.get(selectedCompany));
+            selectACar(companies.get(selectedCompany), customerId);
         } catch(SQLException se) {
             //Handle errors for JDBC
             se.printStackTrace();
         }
     }
 
-    private void selectACar(int id) {
+    private Boolean HasARentedCar(ResultSet customer) {
         try {
-            String conditions = String.format("WHERE COMPANY_ID = %d", id);
-            ResultSet rs = carController.getAllRecords(conditions);
+            Integer rentedCarId = customer.getInt("RENTED_CAR_ID");
+            return !customer.wasNull();
+        } catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+            return false;
+        }
+    }
 
-            if (!rs.next()) {
+    private void selectACar(int companyId, int customerId) {
+        try {
+            String carConditions = String.format("c WHERE c.COMPANY_ID = %d AND NOT EXISTS (SELECT 1 FROM CUSTOMER cust WHERE cust.RENTED_CAR_ID = c.ID)", companyId);
+            ResultSet allCarsFromCompany = carController.getAllRecords(carConditions);
+
+            if (!allCarsFromCompany.next()) {
                 System.out.println("The car list is empty!");
                 return;
             }
@@ -344,15 +387,15 @@ class CarSharingManager {
             Map<Integer, String> options = new HashMap<>();
 
             do {
-                int carId = rs.getInt("ID");
-                String carName = rs.getString("NAME");
+                int carId = allCarsFromCompany.getInt("ID");
+                String carName = allCarsFromCompany.getString("NAME");
 
-                cars.put(carName, id);
+                cars.put(carName, carId);
                 options.put(counter, carName);
 
                 System.out.printf("%d. %s\n", counter, carName);
                 counter++;
-            }  while (rs.next());
+            }  while (allCarsFromCompany.next());
 
             int option = scanner.nextInt();
 
@@ -363,13 +406,71 @@ class CarSharingManager {
             String selectedCar = options.get(option);
             int selectedCarId = cars.get(selectedCar);
 
+            String updateClause = String.format("RENTED_CAR_ID = %d", selectedCarId);
+            customerController.updateRecord(updateClause, customerId);
+            System.out.printf("You rented '%s'\n", selectedCar);
         } catch(SQLException se) {
             //Handle errors for JDBC
             se.printStackTrace();
         }
     }
 
+    private void returnACar(int customerId) {
+        try {
+            ResultSet currentCustomer = customerController.getRecordById(customerId);
+            currentCustomer.next();
+
+            if (!HasARentedCar(currentCustomer)) {
+                System.out.println("You didn't rent a car!");
+                return;
+            }
+
+            String updateClause = "RENTED_CAR_ID = null";
+            customerController.updateRecord(updateClause, customerId);
+            System.out.println("You've returned a rented car!");
+        }  catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+    }
+
+    private void checkRentedCar(int customerId) {
+        try {
+            ResultSet currentCustomer = customerController.getRecordById(customerId);
+            currentCustomer.next();
+
+            if (!HasARentedCar(currentCustomer)) {
+                System.out.println("You didn't rent a car!");
+                return;
+            }
+
+            int rentedCarId = currentCustomer.getInt("RENTED_CAR_ID");
+            ResultSet car = carController.getRecordById(rentedCarId);
+            car.next();
+            String carName = car.getString("NAME");
+
+            ResultSet company = companyController.getRecordById(car.getInt("COMPANY_ID"));
+            company.next();
+            String companyName = company.getString("NAME");
+
+            System.out.printf("""
+                    Your rented car:
+                    %s
+                    Company:
+                    %s
+                    """, carName, companyName);
+        } catch(SQLException se) {
+            //Handle errors for JDBC
+            se.printStackTrace();
+        }
+
+
+    }
+
     private void createCustomer() {
+        // Consume the newline character
+        scanner.nextLine();
+
         System.out.println("Enter the customer name:");
 
         String customerName = scanner.nextLine();
@@ -379,3 +480,4 @@ class CarSharingManager {
         System.out.println("The customer was added!");
     }
 }
+
